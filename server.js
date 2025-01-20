@@ -3,6 +3,29 @@ const cors = require('cors');
 const { WebSocketServer } = require('ws');
 const http = require('http');
 const path = require('path');
+const mongoose = require('mongoose');
+
+// MongoDB connection
+mongoose.connect('mongodb://your-friends-mac-ip:27017/cardiotrack', {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+})
+.then(() => console.log('Connected to MongoDB'))
+.catch(err => console.error('MongoDB connection error:', err));
+
+// Define the VitalSigns schema
+const vitalSignsSchema = new mongoose.Schema({
+    oxygen: Number,
+    bloodPressure: {
+        systolic: Number,
+        diastolic: Number
+    },
+    heartRate: Number,
+    avgHeartRate: Number,
+    timestamp: { type: Date, default: Date.now }
+});
+
+const VitalSigns = mongoose.model('VitalSigns', vitalSignsSchema);
 
 const app = express();
 
@@ -27,6 +50,9 @@ const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
 // Configure Serial Port
+const { SerialPort } = require('serialport');
+const { ReadlineParser } = require('@serialport/parser-readline');
+
 const serialPort = new SerialPort({
     path: 'COM7',
     baudRate: 115200
@@ -75,10 +101,21 @@ function parseSensorData(data) {
 }
 
 // Process and broadcast sensor data
-function processSensorData(data) {
+async function processSensorData(data) {
     const parsed = parseSensorData(data);
     if (parsed) {
         console.log('Processed data:', JSON.stringify(parsed));
+        
+        // Store in MongoDB
+        try {
+            const vitalData = new VitalSigns(parsed.data);
+            await vitalData.save();
+            console.log('Data saved to MongoDB');
+        } catch (error) {
+            console.error('Error saving to MongoDB:', error);
+        }
+
+        // Broadcast to WebSocket clients
         const message = JSON.stringify(parsed);
         wss.clients.forEach(client => {
             if (client.readyState === 1) {
@@ -87,6 +124,17 @@ function processSensorData(data) {
         });
     }
 }
+
+// API endpoint for storing vital signs
+app.post('/api/vitals', async (req, res) => {
+    try {
+        const vitalData = new VitalSigns(req.body);
+        await vitalData.save();
+        res.status(201).json(vitalData);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
 
 // Serial port data event
 parser.on('data', (data) => {
@@ -111,6 +159,70 @@ serialPort.on('error', (err) => {
     console.error('Serial Port Error:', err.message);
 });
 
+// Admin data endpoint
+app.get('/api/admin/vitals', async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = 20;
+        const skip = (page - 1) * limit;
+
+        // Date filtering
+        const startDate = req.query.startDate ? new Date(req.query.startDate) : new Date(0);
+        const endDate = req.query.endDate ? new Date(req.query.endDate) : new Date();
+
+        const query = {
+            timestamp: {
+                $gte: startDate,
+                $lte: endDate
+            }
+        };
+
+        // Get paginated data
+        const vitals = await VitalSigns
+            .find(query)
+            .sort({ timestamp: -1 })
+            .skip(skip)
+            .limit(limit);
+
+        // Get total count for pagination
+        const total = await VitalSigns.countDocuments(query);
+
+        // Calculate statistics
+        const stats = await VitalSigns.aggregate([
+            { $match: query },
+            {
+                $group: {
+                    _id: null,
+                    avgOxygen: { $avg: '$oxygen' },
+                    avgSystolic: { $avg: '$bloodPressure.systolic' },
+                    avgDiastolic: { $avg: '$bloodPressure.diastolic' },
+                    avgHeartRate: { $avg: '$heartRate' },
+                    totalReadings: { $sum: 1 }
+                }
+            }
+        ]);
+
+        res.json({
+            vitals,
+            totalPages: Math.ceil(total / limit),
+            stats: stats[0] || {
+                avgOxygen: 0,
+                avgSystolic: 0,
+                avgDiastolic: 0,
+                avgHeartRate: 0,
+                totalReadings: 0
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Serve admin page
+app.get('/admin', (req, res) => {
+    res.sendFile(path.join(__dirname, 'admin.html'));
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
     console.error(err.stack);
@@ -125,7 +237,7 @@ server.listen(PORT, '0.0.0.0', () => {
         ? `https://${CODESPACE_NAME}-${PORT}.app.github.dev`
         : `http://localhost:${PORT}`;
     console.log(`Server running on port ${PORT}`);
-    console.log(`Access the dashboard at http://localhost:${PORT}`);
+    console.log(`Access the dashboard at ${publicUrl}`);
 });
 
 // Handle process termination
