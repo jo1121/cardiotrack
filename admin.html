@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CardioTrack - Admin View</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #439ce9;
+            --background-color: #f4f7f6;
+            --text-color: #333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: var(--primary-color);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .controls {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #357ab7;
+        }
+
+        .date-filter {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        input[type="datetime-local"] {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #f8f9fa;
+            color: var(--primary-color);
+        }
+
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .stat-card {
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            text-align: center;
+        }
+
+        .stat-card h3 {
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            font-style: italic;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1><i class="fas fa-database"></i> CardioTrack Data View</h1>
+        
+        <div class="controls">
+            <div class="date-filter">
+                <input type="datetime-local" id="startDate">
+                <span>to</span>
+                <input type="datetime-local" id="endDate">
+                <button onclick="filterData()">Filter</button>
+            </div>
+            <button onclick="downloadData()">Download CSV</button>
+        </div>
+
+        <div class="stats" id="statsSection">
+            <!-- Stats will be populated by JavaScript -->
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Oxygen (%)</th>
+                    <th>Blood Pressure</th>
+                    <th>Heart Rate (BPM)</th>
+                    <th>Avg Heart Rate (BPM)</th>
+                </tr>
+            </thead>
+            <tbody id="dataTable">
+                <!-- Data will be populated by JavaScript -->
+            </tbody>
+        </table>
+
+        <div class="pagination" id="pagination">
+            <!-- Pagination will be populated by JavaScript -->
+        </div>
+    </div>
+
+    <script>
+        let currentPage = 1;
+        const itemsPerPage = 20;
+        let allData = [];
+
+        // Initialize date inputs
+        document.getElementById('endDate').valueAsDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - 7); // Default to last 7 days
+        document.getElementById('startDate').valueAsDate = startDate;
+
+        async function fetchData(page = 1) {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            
+            try {
+                const response = await fetch(`/api/admin/vitals?page=${page}&startDate=${startDate}&endDate=${endDate}`);
+                const data = await response.json();
+                allData = data.vitals;
+                updateTable(data.vitals);
+                updateStats(data.stats);
+                updatePagination(data.totalPages);
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            }
+        }
+
+        function updateTable(data) {
+            const tbody = document.getElementById('dataTable');
+            tbody.innerHTML = '';
+
+            data.forEach(record => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${new Date(record.timestamp).toLocaleString()}</td>
+                    <td>${record.oxygen.toFixed(1)}</td>
+                    <td>${Math.round(record.bloodPressure.systolic)}/${Math.round(record.bloodPressure.diastolic)}</td>
+                    <td>${Math.round(record.heartRate)}</td>
+                    <td>${Math.round(record.avgHeartRate)}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function updateStats(stats) {
+            const statsSection = document.getElementById('statsSection');
+            statsSection.innerHTML = `
+                <div class="stat-card">
+                    <h3>Average Oxygen</h3>
+                    <div>${stats.avgOxygen.toFixed(1)}%</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Average Blood Pressure</h3>
+                    <div>${Math.round(stats.avgSystolic)}/${Math.round(stats.avgDiastolic)}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Average Heart Rate</h3>
+                    <div>${Math.round(stats.avgHeartRate)} BPM</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Readings</h3>
+                    <div>${stats.totalReadings}</div>
+                </div>
+            `;
+        }
+
+        function updatePagination(totalPages) {
+            const pagination = document.getElementById('pagination');
+            pagination.innerHTML = '';
+
+            for (let i = 1; i <= totalPages; i++) {
+                const button = document.createElement('button');
+                button.textContent = i;
+                button.onclick = () => {
+                    currentPage = i;
+                    fetchData(i);
+                };
+                if (i === currentPage) {
+                    button.style.backgroundColor = '#357ab7';
+                }
+                pagination.appendChild(button);
+            }
+        }
+
+        function filterData() {
+            currentPage = 1;
+            fetchData(1);
+        }
+
+        function downloadData() {
+            const headers = ['Timestamp', 'Oxygen', 'Systolic', 'Diastolic', 'Heart Rate', 'Avg Heart Rate'];
+            const csvData = allData.map(record => [
+                new Date(record.timestamp).toLocaleString(),
+                record.oxygen,
+                record.bloodPressure.systolic,
+                record.bloodPressure.diastolic,
+                record.heartRate,
+                record.avgHeartRate
+            ]);
+
+            const csvContent = [
+                headers.join(','),
+                ...csvData.map(row => row.join(','))
+            ].join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'cardiotrack_data.csv';
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+
+        // Initial data load
+        fetchData();
+    </script>
+</body>
+</html>
