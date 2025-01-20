@@ -5,8 +5,8 @@ const http = require('http');
 const path = require('path');
 const mongoose = require('mongoose');
 
-// MongoDB connection
-mongoose.connect('mongodb://mongodb+srv://<db_username>:<db_password>@cluster0.2bb7l.mongodb.net/:27017/cardiotrack', {
+// MongoDB connection - Fixed connection string format
+mongoose.connect('mongodb+srv://cardiotrack:cardiotrack_99@cluster0.2bb7l.mongodb.net/cardiotrack', {
     useNewUrlParser: true,
     useUnifiedTopology: true
 })
