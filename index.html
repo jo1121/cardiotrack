@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CardioTrack - Health Monitoring</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #439ce9;
+            --background-color: #f4f7f6;
+            --text-color: #333;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            padding: 20px;
+        }
+
+        .dashboard-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .connection-status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .chart {
+            background: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .chart h3 {
+            color: var(--primary-color);
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .current-values {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .value-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .value-card h4 {
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+
+        .value {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <h1><i class="fas fa-heartbeat"></i> CardioTrack Dashboard</h1>
+        <div id="connectionStatus" class="connection-status">Connecting...</div>
+
+        <div class="current-values">
+            <div class="value-card">
+                <h4>Oxygen Saturation</h4>
+                <div id="currentOxygen" class="value">--</div>
+            </div>
+            <div class="value-card">
+                <h4>Blood Pressure</h4>
+                <div id="currentBP" class="value">--/--</div>
+            </div>
+            <div class="value-card">
+                <h4>Heart Rate</h4>
+                <div id="currentHR" class="value">--</div>
+            </div>
+        </div>
+
+        <div class="chart-grid">
+            <div class="chart">
+                <h3>Blood Pressure</h3>
+                <div id="bloodPressureVisualization"></div>
+            </div>
+            <div class="chart">
+                <h3>Oxygen Levels</h3>
+                <div id="oxygenLevelVisualization"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws;
+        let bloodPressureHistory = [];
+        let oxygenHistory = [];
+        const MAX_DATA_POINTS = 30;
+
+        function connectWebSocket() {
+            ws = new WebSocket('ws://localhost:8080');
+
+            ws.onopen = () => {
+                document.getElementById('connectionStatus').textContent = 'Connected to device';
+                document.getElementById('connectionStatus').className = 'connection-status connected';
+            };
+
+            ws.onclose = () => {
+                document.getElementById('connectionStatus').textContent = 'Disconnected - Attempting to reconnect...';
+                document.getElementById('connectionStatus').className = 'connection-status disconnected';
+                setTimeout(connectWebSocket, 5000);
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket Error:', error);
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const message = JSON.parse(event.data);
+                    if (message.type === 'vitalSigns') {
+                        updateDashboard(message.data);
+                    }
+                } catch (error) {
+                    console.error('Error processing message:', error);
+                }
+            };
+        }
+
+        function updateDashboard(data) {
+            // Update current values
+            document.getElementById('currentOxygen').textContent = `${data.oxygen.toFixed(1)}%`;
+            document.getElementById('currentBP').textContent = `${Math.round(data.bloodPressure.systolic)}/${Math.round(data.bloodPressure.diastolic)}`;
+            document.getElementById('currentHR').textContent = `${Math.round(data.avgHeartRate)} BPM`;
+
+            // Update history arrays
+            bloodPressureHistory.push(data.bloodPressure.systolic);
+            oxygenHistory.push(data.oxygen);
+
+            if (bloodPressureHistory.length > MAX_DATA_POINTS) {
+                bloodPressureHistory.shift();
+            }
+            if (oxygenHistory.length > MAX_DATA_POINTS) {
+                oxygenHistory.shift();
+            }
+
+            // Update charts
+            renderGraph("bloodPressureVisualization", bloodPressureHistory, [80, 160], "Blood Pressure (mmHg)");
+            renderGraph("oxygenLevelVisualization", oxygenHistory, [90, 100], "Oxygen Saturation (%)");
+        }
+
+        function renderGraph(chartId, data, yDomain, yLabel) {
+            const margin = { top: 20, right: 20, bottom: 30, left: 50 };
+            const width = 400 - margin.left - margin.right;
+            const height = 200 - margin.top - margin.bottom;
+
+            d3.select(`#${chartId}`).html("");
+
+            const svg = d3.select(`#${chartId}`)
+                .append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", `translate(${margin.left},${margin.top})`);
+
+            const x = d3.scaleLinear()
+                .domain([0, MAX_DATA_POINTS - 1])
+                .range([0, width]);
+
+            const y = d3.scaleLinear()
+                .domain(yDomain)
+                .range([height, 0]);
+
+            const line = d3.line()
+                .x((d, i) => x(i))
+                .y(d => y(d));
+
+            svg.append("g")
+                .attr("transform", `translate(0,${height})`)
+                .call(d3.axisBottom(x));
+
+            svg.append("g")
+                .call(d3.axisLeft(y));
+
+            svg.append("path")
+                .datum(data)
+                .attr("fill", "none")
+                .attr("stroke", "#439ce9")
+                .attr("stroke-width", 2)
+                .attr("d", line);
+        }
+
+        connectWebSocket();
+    </script>
+</body>
+</html>
