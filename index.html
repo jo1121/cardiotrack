@@ -26,6 +26,66 @@
             padding: 20px;
         }
 
+        .container {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        input[type="text"], input[type="password"], input[type="email"] {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #357ab7;
+        }
+
+        .error {
+            color: red;
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .link {
+            display: block;
+            text-align: center;
+            margin-top: 15px;
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+
+        .link:hover {
+            text-decoration: underline;
+        }
+
+        /* Dashboard Styles */
         .dashboard-container {
             background: white;
             padding: 20px;
@@ -35,10 +95,18 @@
             margin: 0 auto;
         }
 
-        h1 {
-            color: var(--primary-color);
-            margin-bottom: 20px;
-            text-align: center;
+        .logout-btn, .download-btn {
+            padding: 10px 20px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+
+        .logout-btn:hover, .download-btn:hover {
+            background-color: #357ab7;
         }
 
         .connection-status {
@@ -106,8 +174,55 @@
     </style>
 </head>
 <body>
-    <div class="dashboard-container">
+    <!-- Login Page -->
+    <div id="loginPage" class="container">
+        <h1><i class="fas fa-heartbeat"></i> CardioTrack Login</h1>
+        <form id="loginForm">
+            <div class="input-group">
+                <input type="text" id="loginUsername" placeholder="Username" required>
+            </div>
+            <div class="input-group">
+                <input type="password" id="loginPassword" placeholder="Password" required>
+            </div>
+            <button type="submit">Login</button>
+        </form>
+        <div id="loginError" class="error"></div>
+        <a href="javascript:void(0)" onclick="showRegisterPage()" class="link">Don't have an account? Register here.</a>
+        <a href="javascript:void(0)" onclick="showAboutPage()" class="link">Learn more about CardioTrack</a>
+    </div>
+
+    <!-- Register Page -->
+    <div id="registerPage" class="container" style="display:none;">
+        <h1><i class="fas fa-heartbeat"></i> CardioTrack Registration</h1>
+        <form id="registerForm">
+            <div class="input-group">
+                <input type="email" id="registerEmail" placeholder="Email" required>
+            </div>
+            <div class="input-group">
+                <input type="text" id="registerUsername" placeholder="Username" required>
+            </div>
+            <div class="input-group">
+                <input type="password" id="registerPassword" placeholder="Password" required>
+            </div>
+            <button type="submit">Register</button>
+        </form>
+        <div id="registerError" class="error"></div>
+        <a href="javascript:void(0)" onclick="showLoginPage()" class="link">Already have an account? Login here.</a>
+    </div>
+
+    <!-- About Page -->
+    <div id="aboutPage" class="container" style="display:none;">
+        <h1><i class="fas fa-heartbeat"></i> About CardioTrack</h1>
+        <p>CardioTrack helps you monitor your heart rate, blood pressure, and oxygen levels in real-time. Stay on top of your health with our easy-to-use dashboard.</p>
+        <a href="javascript:void(0)" onclick="showLoginPage()" class="link">Back to Login</a>
+    </div>
+
+    <!-- Dashboard Page -->
+    <div id="dashboardPage" class="container" style="display:none;">
         <h1><i class="fas fa-heartbeat"></i> CardioTrack Dashboard</h1>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+        <button class="download-btn" onclick="downloadData()">Download Data</button>
+
         <div id="connectionStatus" class="connection-status">Connecting...</div>
 
         <div class="current-values">
@@ -138,6 +253,74 @@
     </div>
 
     <script>
+        const users = [
+            { username: 'user1', password: 'pass1' },
+            { username: 'user2', password: 'pass2' },
+        ];
+
+        // Show Pages Functions
+        function showLoginPage() {
+            document.getElementById('loginPage').style.display = 'block';
+            document.getElementById('registerPage').style.display = 'none';
+            document.getElementById('aboutPage').style.display = 'none';
+            document.getElementById('dashboardPage').style.display = 'none';
+        }
+
+        function showRegisterPage() {
+            document.getElementById('loginPage').style.display = 'none';
+            document.getElementById('registerPage').style.display = 'block';
+            document.getElementById('aboutPage').style.display = 'none';
+            document.getElementById('dashboardPage').style.display = 'none';
+        }
+
+        function showAboutPage() {
+            document.getElementById('loginPage').style.display = 'none';
+            document.getElementById('registerPage').style.display = 'none';
+            document.getElementById('aboutPage').style.display = 'block';
+            document.getElementById('dashboardPage').style.display = 'none';
+        }
+
+        // Login Functionality
+        document.getElementById('loginForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+            const user = users.find(u => u.username === username && u.password === password);
+            if (user) {
+                showDashboardPage();
+            } else {
+                document.getElementById('loginError').textContent = 'Invalid credentials. Please try again.';
+            }
+        });
+
+        // Show Dashboard Page after login
+        function showDashboardPage() {
+            document.getElementById('loginPage').style.display = 'none';
+            document.getElementById('registerPage').style.display = 'none';
+            document.getElementById('aboutPage').style.display = 'none';
+            document.getElementById('dashboardPage').style.display = 'block';
+        }
+
+        // Logout Functionality
+        function logout() {
+            showLoginPage();
+        }
+
+        // Download Data Functionality
+        function downloadData() {
+            const data = {
+                oxygen: '98%',
+                bloodPressure: '120/80 mmHg',
+                heartRate: '72 bpm'
+            };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'healthData.json';
+            link.click();
+        }
+
+        // WebSocket and Data Visualization Code remains as is from the previous message...
         let ws;
         let bloodPressureHistory = [];
         let oxygenHistory = [];
@@ -174,12 +357,10 @@
         }
 
         function updateDashboard(data) {
-            // Update current values
             document.getElementById('currentOxygen').textContent = `${data.oxygen.toFixed(1)}%`;
             document.getElementById('currentBP').textContent = `${Math.round(data.bloodPressure.systolic)}/${Math.round(data.bloodPressure.diastolic)}`;
             document.getElementById('currentHR').textContent = `${Math.round(data.avgHeartRate)} BPM`;
 
-            // Update history arrays
             bloodPressureHistory.push(data.bloodPressure.systolic);
             oxygenHistory.push(data.oxygen);
 
@@ -190,7 +371,6 @@
                 oxygenHistory.shift();
             }
 
-            // Update charts
             renderGraph("bloodPressureVisualization", bloodPressureHistory, [80, 160], "Blood Pressure (mmHg)");
             renderGraph("oxygenLevelVisualization", oxygenHistory, [90, 100], "Oxygen Saturation (%)");
         }
@@ -240,3 +420,11 @@
     </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
