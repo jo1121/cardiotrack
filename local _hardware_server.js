@@ -8,17 +8,21 @@ const axios = require('axios');
 const app = express();
 app.use(cors());
 
-// Update WebSocket URL to match your Codespace URL
-const WEBSOCKET_URL = 'wss://legendary-broccoli-wrvqpjwxpqx635rgq-8080.app.github.dev';
-const API_URL = WEBSOCKET_URL.replace('wss://', 'https://');
+// Configuration
+const LOCAL_PORT = 3001;
+const BASE_URL = 'https://legendary-broccoli-wrvqpjwxpqx635rgq-8080.app.github.dev';
+const WEBSOCKET_URL = BASE_URL.replace('https://', 'wss://');
 
+console.log('Base URL:', BASE_URL);
+console.log('WebSocket URL:', WEBSOCKET_URL);
+
+// Configure Serial Port
 const serialPort = new SerialPort({
     path: 'COM7',
     baudRate: 115200
 });
 
 const parser = serialPort.pipe(new ReadlineParser({ delimiter: '\r\n' }));
-const PORT = 3001;
 
 // Function to parse sensor data
 function parseSensorData(data) {
@@ -58,11 +62,10 @@ function parseSensorData(data) {
 
 async function storeDataInMongoDB(data) {
     try {
-        const apiEndpoint = `${API_URL}/api/vitals`;
-        console.log('Attempting to store data in MongoDB');
-        console.log('API URL:', apiEndpoint);
+        const apiEndpoint = `${BASE_URL}/api/vitals`;
+        console.log('Sending data to:', apiEndpoint);
         console.log('Data being sent:', JSON.stringify(data, null, 2));
-
+        
         const response = await axios.post(apiEndpoint, data, {
             headers: {
                 'Content-Type': 'application/json'
@@ -70,16 +73,18 @@ async function storeDataInMongoDB(data) {
             timeout: 5000
         });
 
-        console.log('MongoDB storage response:', response.status, response.statusText);
-        console.log('MongoDB response data:', response.data);
-        return true;
+        if (response.status === 201) {
+            console.log('Data stored successfully');
+            return true;
+        } else {
+            console.error('Unexpected response status:', response.status);
+            return false;
+        }
     } catch (error) {
-        console.error('MongoDB storage error details:');
+        console.error('Failed to store data:');
         console.error('- Error message:', error.message);
         console.error('- Response status:', error.response?.status);
         console.error('- Response data:', error.response?.data);
-        console.error('- Request URL:', error.config?.url);
-        console.error('- Request data:', error.config?.data);
         return false;
     }
 }
@@ -89,62 +94,78 @@ function connectWebSocket() {
     
     const ws = new WebSocket(WEBSOCKET_URL, {
         rejectUnauthorized: false,
-        perMessageDeflate: false,
-        handshakeTimeout: 15000
+        headers: {
+            'Origin': BASE_URL
+        }
     });
 
+    let reconnectTimer;
+    let heartbeatInterval;
+
     ws.on('open', () => {
-        console.log('Connected to WebSocket server');
-        const testMessage = {
-            type: 'serialData',
-            data: 'Connection Test'
+        console.log('Successfully connected to WebSocket server');
+        
+        if (reconnectTimer) {
+            clearTimeout(reconnectTimer);
+        }
+
+        // Send initial device status
+        const connectionMessage = {
+            type: 'deviceStatus',
+            status: 'connected',
+            timestamp: new Date().toISOString()
         };
-        ws.send(JSON.stringify(testMessage));
+        ws.send(JSON.stringify(connectionMessage));
+
+        // Setup heartbeat
+        heartbeatInterval = setInterval(() => {
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.ping();
+                ws.send(JSON.stringify({
+                    type: 'deviceStatus',
+                    status: 'connected',
+                    timestamp: new Date().toISOString()
+                }));
+            }
+        }, 15000);
     });
 
     ws.on('message', (data) => {
-        console.log('Received from WebSocket:', data.toString());
-    });
-
-    ws.on('error', (error) => {
-        console.error('WebSocket error:', error);
+        console.log('Received message:', data.toString());
     });
 
     ws.on('close', (code, reason) => {
-        console.log(`Connection closed with code ${code}. Reason: ${reason}`);
-        console.log('Reconnecting in 5 seconds...');
-        setTimeout(connectWebSocket, 5000);
+        console.log(`WebSocket connection closed. Code: ${code}, Reason: ${reason}`);
+        clearInterval(heartbeatInterval);
+        
+        console.log('Attempting to reconnect in 5 seconds...');
+        reconnectTimer = setTimeout(connectWebSocket, 5000);
+    });
+
+    ws.on('error', (error) => {
+        console.error('WebSocket connection error:', error.message);
     });
 
     // Handle serial port data
-    parser.on('data', async (data) => {
-        console.log('\n--- New Data Received ---');
-        console.log('Raw data from serial port:', data);
-        
+    parser.on('data', (data) => {
+        console.log('Raw data:', data);
         const parsedData = parseSensorData(data);
         
         if (parsedData) {
-            // Send to WebSocket for real-time updates
             if (ws.readyState === WebSocket.OPEN) {
-                const wsMessage = {
+                const message = {
                     type: 'vitalSigns',
                     data: parsedData
                 };
-                console.log('Sending data via WebSocket:', JSON.stringify(wsMessage));
-                ws.send(JSON.stringify(wsMessage));
-            } else {
-                console.log('WebSocket not ready. Current state:', ws.readyState);
+                ws.send(JSON.stringify(message));
+                console.log('Sent vital signs data');
             }
 
-            // Store in MongoDB
-            const stored = await storeDataInMongoDB(parsedData);
-            if (stored) {
-                console.log('Successfully stored data in MongoDB');
-            } else {
-                console.log('Failed to store data in MongoDB');
-            }
+            storeDataInMongoDB(parsedData);
         }
     });
+
+    return ws;
 }
 
 // Error handling for serial port
@@ -152,11 +173,26 @@ serialPort.on('error', (err) => {
     console.error('Serial port error:', err);
 });
 
-// Initial connection
-connectWebSocket();
+// Start the server and establish initial connection
+app.listen(LOCAL_PORT, () => {
+    console.log(`Local hardware server running on port ${LOCAL_PORT}`);
+    
+    // Test the main server connection first
+    axios.get(BASE_URL)
+        .then(() => {
+            console.log('Main server is accessible');
+            connectWebSocket();
+        })
+        .catch((error) => {
+            console.error('Main server is not accessible:', error.message);
+            console.log('Will attempt WebSocket connection anyway...');
+            connectWebSocket();
+        });
+});
 
-// Start Express server
-app.listen(PORT, () => {
-    console.log(`Local hardware server running on port ${PORT}`);
-    console.log('API endpoint:', `${API_URL}/api/vitals`);
+// Handle process termination
+process.on('SIGTERM', () => {
+    serialPort.close();
+    console.log('Serial port closed');
+    process.exit(0);
 });
