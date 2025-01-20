@@ -252,11 +252,63 @@
         </div>
     </div>
 
+    <div class="historical-data">
+        <h3>Historical Data</h3>
+        <table id="vitalsTable" style="width:100%; border-collapse: collapse; margin-top: 20px;">
+            <thead>
+                <tr>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Timestamp</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Oxygen (%)</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Blood Pressure (mmHg)</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Heart Rate (BPM)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Rows will be dynamically populated using JavaScript -->
+            </tbody>
+        </table>
+    </div>
+
     <script>
         const users = [
             { username: 'user1', password: 'pass1' },
             { username: 'user2', password: 'pass2' },
         ];
+        // Fetch and display the latest vital signs
+async function fetchLatestVitals() {
+    try {
+        const response = await fetch('/api/vitals/latest');
+        const data = await response.json();
+
+        if (data) {
+            document.getElementById('currentOxygen').textContent = `${data.oxygen.toFixed(1)}%`;
+            document.getElementById('currentBP').textContent = `${Math.round(data.bloodPressure.systolic)}/${Math.round(data.bloodPressure.diastolic)}`;
+            document.getElementById('currentHR').textContent = `${Math.round(data.avgHeartRate)} BPM`;
+        }
+    } catch (error) {
+        console.error('Error fetching latest vitals:', error);
+    }
+}
+
+// Fetch and display historical data
+async function fetchVitalsHistory() {
+    try {
+        const response = await fetch('/api/vitals?page=1&limit=20');
+        const data = await response.json();
+
+        if (Array.isArray(data)) {
+            // Example: Render the historical data in a table or chart
+            console.log('Historical Data:', data);
+        }
+    } catch (error) {
+        console.error('Error fetching vitals history:', error);
+    }
+}
+
+// Call the functions to load data
+fetchLatestVitals();
+fetchVitalsHistory();
+
 
         // Show Pages Functions
         function showLoginPage() {
