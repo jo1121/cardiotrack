@@ -6,7 +6,7 @@ const path = require('path');
 const mongoose = require('mongoose');
 
 // MongoDB connection
-mongoose.connect('mongodb://your-friends-mac-ip:27017/cardiotrack', {
+mongoose.connect('mongodb://mongodb+srv://<db_username>:<db_password>@cluster0.2bb7l.mongodb.net/:27017/cardiotrack', {
     useNewUrlParser: true,
     useUnifiedTopology: true
 })
