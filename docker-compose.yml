@@ -1,0 +1,9 @@
+version: '3'
+services:
+  cardiotrack:
+    build: .
+    ports:
+      - "8080:8080"
+    devices:
+      - "/dev/ttyUSB0:/dev/ttyUSB0"  # Adjust this based on your serial port
+    restart: unless-stopped
