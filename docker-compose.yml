@@ -4,6 +4,6 @@ services:
     build: .
     ports:
       - "8080:8080"
-    devices:
-      - "/dev/ttyUSB0:/dev/ttyUSB0"  # Adjust this based on your serial port
+    environment:
+      - SERIAL_PORT=COM7  # Windows COM port
     restart: unless-stopped
