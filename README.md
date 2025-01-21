@@ -5,4 +5,5 @@ username= admin
 
 password= password123
 the webpage is accessed through the public url= https://legendary-broccoli-wrvqpjwxpqx635rgq-8080.app.github.dev
+it is shown when the cloud server is running
 
