@@ -144,3 +144,20 @@ server.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
     console.log(`Access the dashboard at ${publicUrl}`);
 });
+app.get('/api/admin/vitals/download', async (req, res) => {
+    try {
+        // Get all vital signs data without pagination
+        const vitals = await VitalSigns
+            .find({})
+            .sort({ timestamp: -1 });
+
+        // Set headers for file download
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Disposition', 'attachment; filename=vital_signs_data.json');
+        
+        // Send the data
+        res.json(vitals);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});

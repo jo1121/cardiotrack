@@ -166,6 +166,8 @@
                 <div class="stat-value" id="avgHeartRate">--</div>
             </div>
         </div>
+        <button id="downloadData" style="margin-top: 20px;">Download Data</button>
+
 
         <div class="charts-container">
             <div class="chart-card">
@@ -314,6 +316,30 @@
             oxygenChart.data.datasets[0].data.push(data.oxygen);
             oxygenChart.update();
         }
+        document.getElementById('downloadData').addEventListener('click', async () => {
+    try {
+        const response = await fetch('/api/admin/vitals/download');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.blob();
+        const url = URL.createObjectURL(data);
+        
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'vital_signs_data.json';
+        document.body.appendChild(link); // Needed for Firefox
+        link.click();
+        document.body.removeChild(link); // Clean up
+        URL.revokeObjectURL(url);
+    } catch (error) {
+        console.error('Error:', error);
+        alert(`Failed to download data: ${error.message}`);
+    }
+});
+
+
     </script>
 </body>
 </html>
