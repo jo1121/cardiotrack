@@ -3,479 +3,317 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CardioTrack - Health Monitoring</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <title>CardioTrack Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
     <style>
-        :root {
-            --primary-color: #439ce9;
-            --background-color: #f4f7f6;
-            --text-color: #333;
-        }
-
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            font-family: Arial, sans-serif;
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--background-color);
-            color: var(--text-color);
-            padding: 20px;
+            background: #f0f2f5;
         }
 
-        .container {
+        .login-container {
+            position: fixed;
+            top: 0;
+            left: 0;
             width: 100%;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
         }
 
-        h1 {
-            color: var(--primary-color);
-            margin-bottom: 20px;
+        .login-box {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .login-box h2 {
+            margin-bottom: 1.5rem;
+            color: #333;
             text-align: center;
         }
 
         .input-group {
-            margin-bottom: 15px;
+            margin-bottom: 1rem;
         }
 
-        input[type="text"], input[type="password"], input[type="email"] {
+        .input-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #555;
+        }
+
+        .input-group input {
             width: 100%;
-            padding: 10px;
-            margin: 5px 0;
-            border: 1px solid #ccc;
-            border-radius: 5px;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
             font-size: 1rem;
         }
 
         button {
             width: 100%;
-            padding: 10px;
-            background-color: var(--primary-color);
+            padding: 0.75rem;
+            background: #007bff;
             color: white;
             border: none;
-            border-radius: 5px;
-            font-size: 1.2rem;
+            border-radius: 4px;
+            font-size: 1rem;
             cursor: pointer;
+            transition: background 0.3s;
         }
 
         button:hover {
-            background-color: #357ab7;
+            background: #0056b3;
         }
 
-        .error {
-            color: red;
-            text-align: center;
-            margin-top: 10px;
+        .dashboard {
+            display: none;
+            padding: 2rem;
         }
 
-        .link {
-            display: block;
-            text-align: center;
-            margin-top: 15px;
-            color: var(--primary-color);
-            text-decoration: none;
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
         }
 
-        .link:hover {
-            text-decoration: underline;
-        }
-
-        /* Dashboard Styles */
-        .dashboard-container {
+        .stat-card {
             background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .logout-btn, .download-btn {
-            padding: 10px 20px;
-            background-color: var(--primary-color);
-            color: white;
-            border: none;
-            border-radius: 5px;
-            font-size: 1.2rem;
-            cursor: pointer;
-        }
-
-        .logout-btn:hover, .download-btn:hover {
-            background-color: #357ab7;
-        }
-
-        .connection-status {
-            padding: 10px;
-            margin: 10px 0;
-            border-radius: 4px;
-            text-align: center;
-            font-weight: bold;
-        }
-
-        .connected {
-            background-color: #d4edda;
-            color: #155724;
-        }
-
-        .disconnected {
-            background-color: #f8d7da;
-            color: #721c24;
-        }
-
-        .chart-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
-        }
-
-        .chart {
-            background: #fff;
-            padding: 15px;
+            padding: 1.5rem;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
-        .chart h3 {
-            color: var(--primary-color);
-            margin-bottom: 15px;
-            text-align: center;
+        .stat-card h3 {
+            margin-bottom: 0.5rem;
+            color: #555;
         }
 
-        .current-values {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-top: 20px;
-            text-align: center;
-        }
-
-        .value-card {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-        }
-
-        .value-card h4 {
-            color: var(--primary-color);
-            margin-bottom: 10px;
-        }
-
-        .value {
-            font-size: 1.5rem;
+        .stat-value {
+            font-size: 2rem;
             font-weight: bold;
+            color: #007bff;
+        }
+
+        .charts-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+
+        .chart-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        @media (min-width: 768px) {
+            .charts-container {
+                grid-template-columns: repeat(2, 1fr);
+            }
         }
     </style>
 </head>
 <body>
-    <!-- Login Page -->
-    <div id="loginPage" class="container">
-        <h1><i class="fas fa-heartbeat"></i> CardioTrack Login</h1>
-        <form id="loginForm">
-            <div class="input-group">
-                <input type="text" id="loginUsername" placeholder="Username" required>
-            </div>
-            <div class="input-group">
-                <input type="password" id="loginPassword" placeholder="Password" required>
-            </div>
-            <button type="submit">Login</button>
-        </form>
-        <div id="loginError" class="error"></div>
-        <a href="javascript:void(0)" onclick="showRegisterPage()" class="link">Don't have an account? Register here.</a>
-        <a href="javascript:void(0)" onclick="showAboutPage()" class="link">Learn more about CardioTrack</a>
-    </div>
-
-    <!-- Register Page -->
-    <div id="registerPage" class="container" style="display:none;">
-        <h1><i class="fas fa-heartbeat"></i> CardioTrack Registration</h1>
-        <form id="registerForm">
-            <div class="input-group">
-                <input type="email" id="registerEmail" placeholder="Email" required>
-            </div>
-            <div class="input-group">
-                <input type="text" id="registerUsername" placeholder="Username" required>
-            </div>
-            <div class="input-group">
-                <input type="password" id="registerPassword" placeholder="Password" required>
-            </div>
-            <button type="submit">Register</button>
-        </form>
-        <div id="registerError" class="error"></div>
-        <a href="javascript:void(0)" onclick="showLoginPage()" class="link">Already have an account? Login here.</a>
-    </div>
-
-    <!-- About Page -->
-    <div id="aboutPage" class="container" style="display:none;">
-        <h1><i class="fas fa-heartbeat"></i> About CardioTrack</h1>
-        <p>CardioTrack helps you monitor your heart rate, blood pressure, and oxygen levels in real-time. Stay on top of your health with our easy-to-use dashboard.</p>
-        <a href="javascript:void(0)" onclick="showLoginPage()" class="link">Back to Login</a>
-    </div>
-
-    <!-- Dashboard Page -->
-    <div id="dashboardPage" class="container" style="display:none;">
-        <h1><i class="fas fa-heartbeat"></i> CardioTrack Dashboard</h1>
-        <button class="logout-btn" onclick="logout()">Logout</button>
-        <button class="download-btn" onclick="downloadData()">Download Data</button>
-
-        <div id="connectionStatus" class="connection-status">Connecting...</div>
-
-        <div class="current-values">
-            <div class="value-card">
-                <h4>Oxygen Saturation</h4>
-                <div id="currentOxygen" class="value">--</div>
-            </div>
-            <div class="value-card">
-                <h4>Blood Pressure</h4>
-                <div id="currentBP" class="value">--/--</div>
-            </div>
-            <div class="value-card">
-                <h4>Heart Rate</h4>
-                <div id="currentHR" class="value">--</div>
-            </div>
+    <div class="login-container" id="loginContainer">
+        <div class="login-box">
+            <h2>CardioTrack Login</h2>
+            <form id="loginForm">
+                <div class="input-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" required>
+                </div>
+                <div class="input-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" required>
+                </div>
+                <button type="submit">Login</button>
+            </form>
         </div>
+    </div>
 
-        <div class="chart-grid">
-            <div class="chart">
+    <div class="dashboard" id="dashboard">
+        <div class="stats-container">
+            <div class="stat-card">
+                <h3>Heart Rate</h3>
+                <div class="stat-value" id="heartRate">--</div>
+            </div>
+            <div class="stat-card">
+                <h3>Blood Oxygen</h3>
+                <div class="stat-value" id="oxygen">--</div>
+            </div>
+            <div class="stat-card">
                 <h3>Blood Pressure</h3>
-                <div id="bloodPressureVisualization"></div>
+                <div class="stat-value" id="bloodPressure">--/--</div>
             </div>
-            <div class="chart">
-                <h3>Oxygen Levels</h3>
-                <div id="oxygenLevelVisualization"></div>
+            <div class="stat-card">
+                <h3>Average Heart Rate</h3>
+                <div class="stat-value" id="avgHeartRate">--</div>
             </div>
         </div>
-    </div>
 
-    <div class="historical-data">
-        <h3>Historical Data</h3>
-        <table id="vitalsTable" style="width:100%; border-collapse: collapse; margin-top: 20px;">
-            <thead>
-                <tr>
-                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Timestamp</th>
-                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Oxygen (%)</th>
-                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Blood Pressure (mmHg)</th>
-                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Heart Rate (BPM)</th>
-                </tr>
-            </thead>
-            <tbody>
-            </tbody>
-        </table>
+        <div class="charts-container">
+            <div class="chart-card">
+                <canvas id="heartRateChart"></canvas>
+            </div>
+            <div class="chart-card">
+                <canvas id="oxygenChart"></canvas>
+            </div>
+        </div>
     </div>
 
     <script>
-        const users = [
-            { username: 'user1', password: 'pass1' },
-            { username: 'user2', password: 'pass2' },
-        ];
-        // Fetch and display the latest vital signs
-async function fetchLatestVitals() {
-    try {
-        const response = await fetch('/api/vitals/latest');
-        const data = await response.json();
+        // Login credentials (replace with secure authentication)
+        const VALID_USERNAME = 'admin';
+        const VALID_PASSWORD = 'password123';
 
-        if (data) {
-            document.getElementById('currentOxygen').textContent = `${data.oxygen.toFixed(1)}%`;
-            document.getElementById('currentBP').textContent = `${Math.round(data.bloodPressure.systolic)}/${Math.round(data.bloodPressure.diastolic)}`;
-            document.getElementById('currentHR').textContent = `${Math.round(data.avgHeartRate)} BPM`;
-        }
-    } catch (error) {
-        console.error('Error fetching latest vitals:', error);
-    }
-}
+        // DOM Elements
+        const loginContainer = document.getElementById('loginContainer');
+        const loginForm = document.getElementById('loginForm');
+        const dashboard = document.getElementById('dashboard');
 
-// Fetch and display historical data
-async function fetchVitalsHistory() {
-    try {
-        const response = await fetch('/api/vitals?page=1&limit=20');
-        const data = await response.json();
+        // Charts
+        let heartRateChart, oxygenChart;
+        const maxDataPoints = 20;
 
-        if (Array.isArray(data)) {
-            // Example: Render the historical data in a table or chart
-            console.log('Historical Data:', data);
-        }
-    } catch (error) {
-        console.error('Error fetching vitals history:', error);
-    }
-}
+        // Login handler
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
 
-// Call the functions to load data
-fetchLatestVitals();
-fetchVitalsHistory();
-
-
-        // Show Pages Functions
-        function showLoginPage() {
-            document.getElementById('loginPage').style.display = 'block';
-            document.getElementById('registerPage').style.display = 'none';
-            document.getElementById('aboutPage').style.display = 'none';
-            document.getElementById('dashboardPage').style.display = 'none';
-        }
-
-        function showRegisterPage() {
-            document.getElementById('loginPage').style.display = 'none';
-            document.getElementById('registerPage').style.display = 'block';
-            document.getElementById('aboutPage').style.display = 'none';
-            document.getElementById('dashboardPage').style.display = 'none';
-        }
-
-        function showAboutPage() {
-            document.getElementById('loginPage').style.display = 'none';
-            document.getElementById('registerPage').style.display = 'none';
-            document.getElementById('aboutPage').style.display = 'block';
-            document.getElementById('dashboardPage').style.display = 'none';
-        }
-
-        // Login Functionality
-        document.getElementById('loginForm').addEventListener('submit', function(event) {
-            event.preventDefault();
-            const username = document.getElementById('loginUsername').value;
-            const password = document.getElementById('loginPassword').value;
-            const user = users.find(u => u.username === username && u.password === password);
-            if (user) {
-                showDashboardPage();
+            if (username === VALID_USERNAME && password === VALID_PASSWORD) {
+                loginContainer.style.display = 'none';
+                dashboard.style.display = 'block';
+                initializeCharts();
+                connectWebSocket();
+                loadHistoricalData();
             } else {
-                document.getElementById('loginError').textContent = 'Invalid credentials. Please try again.';
+                alert('Invalid credentials');
             }
         });
 
-        // Show Dashboard Page after login
-        function showDashboardPage() {
-            document.getElementById('loginPage').style.display = 'none';
-            document.getElementById('registerPage').style.display = 'none';
-            document.getElementById('aboutPage').style.display = 'none';
-            document.getElementById('dashboardPage').style.display = 'block';
+        // Initialize charts
+        function initializeCharts() {
+            const heartRateCtx = document.getElementById('heartRateChart').getContext('2d');
+            const oxygenCtx = document.getElementById('oxygenChart').getContext('2d');
+
+            heartRateChart = new Chart(heartRateCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Heart Rate',
+                        data: [],
+                        borderColor: '#007bff',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+
+            oxygenChart = new Chart(oxygenCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Blood Oxygen',
+                        data: [],
+                        borderColor: '#28a745',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
         }
 
-        // Logout Functionality
-        function logout() {
-            showLoginPage();
-        }
-
-        // Download Data Functionality
-        function downloadData() {
-            const data = {
-                oxygen: '98%',
-                bloodPressure: '120/80 mmHg',
-                heartRate: '72 bpm'
-            };
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = 'healthData.json';
-            link.click();
-        }
-
-        // WebSocket and Data Visualization Code remains as is from the previous message...
-        let ws;
-        let bloodPressureHistory = [];
-        let oxygenHistory = [];
-        const MAX_DATA_POINTS = 30;
-
+        // WebSocket connection
         function connectWebSocket() {
-            ws = new WebSocket('ws://localhost:8080');
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const ws = new WebSocket(`${protocol}//${window.location.host}`);
 
-            ws.onopen = () => {
-                document.getElementById('connectionStatus').textContent = 'Connected to device';
-                document.getElementById('connectionStatus').className = 'connection-status connected';
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.type === 'vitalSigns') {
+                    updateDashboard(data.data);
+                    updateCharts(data.data);
+                }
             };
 
             ws.onclose = () => {
-                document.getElementById('connectionStatus').textContent = 'Disconnected - Attempting to reconnect...';
-                document.getElementById('connectionStatus').className = 'connection-status disconnected';
                 setTimeout(connectWebSocket, 5000);
             };
+        }
 
-            ws.onerror = (error) => {
-                console.error('WebSocket Error:', error);
-            };
-
-            ws.onmessage = (event) => {
-                try {
-                    const message = JSON.parse(event.data);
-                    if (message.type === 'vitalSigns') {
-                        updateDashboard(message.data);
-                    }
-                } catch (error) {
-                    console.error('Error processing message:', error);
+        // Load historical data
+        async function loadHistoricalData() {
+            try {
+                const response = await fetch('/api/admin/vitals');
+                const data = await response.json();
+                
+                if (data.vitals && data.vitals.length > 0) {
+                    const initialData = data.vitals.reverse();
+                    initialData.forEach(reading => {
+                        updateCharts(reading);
+                    });
                 }
-            };
+            } catch (error) {
+                console.error('Error loading historical data:', error);
+            }
         }
 
+        // Update dashboard values
         function updateDashboard(data) {
-            document.getElementById('currentOxygen').textContent = `${data.oxygen.toFixed(1)}%`;
-            document.getElementById('currentBP').textContent = `${Math.round(data.bloodPressure.systolic)}/${Math.round(data.bloodPressure.diastolic)}`;
-            document.getElementById('currentHR').textContent = `${Math.round(data.avgHeartRate)} BPM`;
-
-            bloodPressureHistory.push(data.bloodPressure.systolic);
-            oxygenHistory.push(data.oxygen);
-
-            if (bloodPressureHistory.length > MAX_DATA_POINTS) {
-                bloodPressureHistory.shift();
-            }
-            if (oxygenHistory.length > MAX_DATA_POINTS) {
-                oxygenHistory.shift();
-            }
-
-            renderGraph("bloodPressureVisualization", bloodPressureHistory, [80, 160], "Blood Pressure (mmHg)");
-            renderGraph("oxygenLevelVisualization", oxygenHistory, [90, 100], "Oxygen Saturation (%)");
+            document.getElementById('heartRate').textContent = `${Math.round(data.heartRate)} BPM`;
+            document.getElementById('oxygen').textContent = `${Math.round(data.oxygen)}%`;
+            document.getElementById('bloodPressure').textContent = 
+                `${Math.round(data.bloodPressure.systolic)}/${Math.round(data.bloodPressure.diastolic)}`;
+            document.getElementById('avgHeartRate').textContent = `${Math.round(data.avgHeartRate)} BPM`;
         }
 
-        function renderGraph(chartId, data, yDomain, yLabel) {
-            const margin = { top: 20, right: 20, bottom: 30, left: 50 };
-            const width = 400 - margin.left - margin.right;
-            const height = 200 - margin.top - margin.bottom;
+        // Update charts
+        function updateCharts(data) {
+            const timestamp = new Date(data.timestamp).toLocaleTimeString();
 
-            d3.select(`#${chartId}`).html("");
+            // Update Heart Rate Chart
+            if (heartRateChart.data.labels.length > maxDataPoints) {
+                heartRateChart.data.labels.shift();
+                heartRateChart.data.datasets[0].data.shift();
+            }
+            heartRateChart.data.labels.push(timestamp);
+            heartRateChart.data.datasets[0].data.push(data.heartRate);
+            heartRateChart.update();
 
-            const svg = d3.select(`#${chartId}`)
-                .append("svg")
-                .attr("width", width + margin.left + margin.right)
-                .attr("height", height + margin.top + margin.bottom)
-                .append("g")
-                .attr("transform", `translate(${margin.left},${margin.top})`);
-
-            const x = d3.scaleLinear()
-                .domain([0, MAX_DATA_POINTS - 1])
-                .range([0, width]);
-
-            const y = d3.scaleLinear()
-                .domain(yDomain)
-                .range([height, 0]);
-
-            const line = d3.line()
-                .x((d, i) => x(i))
-                .y(d => y(d));
-
-            svg.append("g")
-                .attr("transform", `translate(0,${height})`)
-                .call(d3.axisBottom(x));
-
-            svg.append("g")
-                .call(d3.axisLeft(y));
-
-            svg.append("path")
-                .datum(data)
-                .attr("fill", "none")
-                .attr("stroke", "#439ce9")
-                .attr("stroke-width", 2)
-                .attr("d", line);
+            // Update Oxygen Chart
+            if (oxygenChart.data.labels.length > maxDataPoints) {
+                oxygenChart.data.labels.shift();
+                oxygenChart.data.datasets[0].data.shift();
+            }
+            oxygenChart.data.labels.push(timestamp);
+            oxygenChart.data.datasets[0].data.push(data.oxygen);
+            oxygenChart.update();
         }
-
-        connectWebSocket();
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
